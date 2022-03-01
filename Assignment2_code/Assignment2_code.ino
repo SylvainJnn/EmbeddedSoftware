@@ -6,6 +6,9 @@
 
 Ticker task1_ticker, task2_tick, task3_tick, task4_tick, task5_tick, task6_tick, task7_tick, task8_tick, task9_tick;
 
+Ticker myTicker;
+int counter =0;
+
 // ============= task 2 =============
 int const task2_input = 2;    //pin where the task2 button is connected
 
@@ -55,7 +58,7 @@ void task2()
 // no clue bro
 void ReadFrequency()
 {
-  previous_time = current_time();
+  previous_time = current_time;
   current_time = micros();
 }
 
@@ -71,7 +74,7 @@ void task3()
 //Read the potentiometer
 void task4()
 {
-  Serial.println("I'm task 3, the fast faster");
+  Serial.println("I'm task 4, need five seconds ");
   current_analog_value = analogRead(potentiometer);             // reads the value of the potentiometer (value between 0 and 1023)
   pot_value_digital = map(current_analog_value, 0, 1023, 0, 180);    // scale it to use it with the servo (value between 0 and 180)
   
@@ -140,7 +143,7 @@ void task9()
   Serial.print(", ");
 
   Serial.print("Task 3 Frequency :");
-  Serial.print("nothing for the moment");
+  Serial.print(signal_frequency);
   Serial.print(", ");
 
   Serial.print("Task 5 analog input average");
@@ -148,6 +151,27 @@ void task9()
   Serial.print("\n");
 }
 
+
+void my_function()
+{
+
+  if(counter % 2 == 0)
+  {
+    task2();
+  }
+
+  if(counter % 1 == 0)
+  {
+    task3();
+  }
+  
+  if(counter % 5 == 0)
+  {
+    task4();
+  }
+  
+  counter++;
+}
 
 
 // =====================================
@@ -157,14 +181,15 @@ void setup()
 {
   Serial.begin(115200); 
 
-  task2_tick.attach(2, task2);
-  task3_tick.attach(1, task3);
+  //task2_tick.attach(2, task2);
+  //task3_tick.attach(1, task3);
   /*task4_tick.attach(0.1, task4);
   task5_tick.attach(0.1, task5);
   task6_tick.attach(0.1, task6);
   task7_tick.attach(0.1, task7);
   task8_tick.attach(0.1, task8);
   task9_tick.attach(0.1, task9);*/
+  myTicker.attach(1, my_function);
 
 
   pinMode(task2_input, INPUT);
@@ -178,6 +203,7 @@ void setup()
 
 void loop() 
 {
-  now();
+
+    
   
 }
