@@ -107,7 +107,7 @@ void ReadFrequency()// To compute the period of the input signal we set the prev
 {
   previous_time = current_time;                   //set the previous time
   current_time = micros();                        //Read the current time
-  period = (current_time - previous_time);        //Calcultae the period
+  period = check_time(previous_time, current_time);//Call the check_time function
 }
 
 
@@ -194,12 +194,8 @@ void task9()
 
   Serial.print("Task 5 analog input average :");
   
-  //float analogue_in_print =  (average_analogue_in*3,3)/4096; 
-  
   Serial.print(average_analogue_in);
   Serial.print("\n");
-  Serial.println(error_code);
-  Serial.println(task_period);
 }
 
 
