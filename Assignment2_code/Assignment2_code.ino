@@ -3,7 +3,7 @@
 
 /* Prototypes of the functions */
 Ticker myTicker;
-void task1();
+void task1();//prototype of the tasks
 void task2();
 void task3();
 void task4();
@@ -12,7 +12,7 @@ void task6();
 void task7();
 void task8();
 void task9();
-
+//Period of each tasks
 const int TimeTask1 = 9; // time to wait signal B
 const int TimeTask2 = 200;
 const int TimeTask3 = 1000;
@@ -23,7 +23,7 @@ const int TimeTask7 = 333;
 const int TimeTask8 = 333;
 const int TimeTask9 = 5000;
 
-int Counter = 0;
+int Counter = 0;  // Counter use to know wich task launch or not
 
 
 // ============= task 1 =============
@@ -37,14 +37,16 @@ int task2_state;             //state of the button is task2
 // ============= task 3 =============
 int const task3_input = 27;
 
-unsigned long current_time = micros(); // init time
-unsigned long previous_time = micros();
-unsigned long period = 0;
+unsigned long current_time = 1; // init time
+unsigned long previous_time = 0;
+unsigned long period = 1;
 float signal_frequency = 0;
 // ============= task 4 & 5 =============
 int const task4_input_analog = 26;  //pin where the potentiometer is connected
 int current_analog_value;
 float pot_value_digital;
+
+float task_period = 1;
 
 //initliase the analog_value variables to avoid bug at the begining
 float analog_value1 = 0;
@@ -58,11 +60,25 @@ int error_code = 0;   //variable use in task 7 and 8, we set this value to avoid
 
 int const task8_output = 25; //set pin used for task 8
 
+// === Variable use to check the frenquency of the tasks ===
+unsigned long t1_task4 = 0;//task 4 check time
+unsigned long t2_task4 = micros();
+
 
 
 // ====================================
 // ============= Function =============
 // ====================================
+long check_time(long t1, long t2)//Function that returns the period between two activations of a task.
+{
+    unsigned long  frequency_signal;
+    unsigned long period_signal;
+    period_signal = t2-t1;
+    frequency_signal = (unsigned long)((1000000)/ period_signal);
+    return(period_signal);
+    
+}
+
 
 // ============= task 1 =============
 // Check the sate of the input button "task2_input"
@@ -87,18 +103,17 @@ void task2()
 
 // ============= task 3 =============
 // compute the frequency of an input signal 
-int check = 0;
-void ReadFrequency()
+void ReadFrequency()// To compute the period of the input signal we set the previous time with the current_time variable and then read the current time with micros(). this function is called every rising edge
 {
-  previous_time = current_time;
-  current_time = micros();
-  period = (current_time - previous_time);
+  previous_time = current_time;                   //set the previous time
+  current_time = micros();                        //Read the current time
+  period = (current_time - previous_time);        //Calcultae the period
 }
 
 
 void task3()
 {
-  signal_frequency = (float)((1000000/ period));//the period is in µs -> we passe the frenquency in Hz
+  signal_frequency = (float)((1000000/ period));//the period is in µs -> we passe the frenquency in Hz, this variable comes from the function "ReadFrequency"
 }
 
 
@@ -107,18 +122,22 @@ void task3()
 void task4()
 {
   current_analog_value = analogRead(task4_input_analog);             // reads the value of the potentiometer (value between 0 and 1023)
+  
+  t1_task4 = t2_task4;
+  t2_task4 = micros();
+  task_period = check_time(t1_task4, t2_task4);
 }
 
 // ============= task 5 =============
 // Do the average of the last 4 analog inputs
 void task5()
 {
-  analog_value4 = analog_value3;
+  analog_value4 = analog_value3;                          //update variables   
   analog_value3 = analog_value2;
   analog_value2 = analog_value1;
-  analog_value1 = current_analog_value;
+  analog_value1 = current_analog_value;                   //Set the current analogue value
 
-  average_analogue_in = (analog_value1 + analog_value2 + analog_value3 + analog_value4) / 4;
+  average_analogue_in = (analog_value1 + analog_value2 + analog_value3 + analog_value4) / 4;  //Do the average
 }
 
 // ============= task 6 =============
@@ -136,8 +155,8 @@ void task6()
 void task7()
 {
   float half_of_maximum_range = 3.3 / 2;
-  float half_of_maximum_range_digital = 4096/2; // 2^^12/2, number of bit for the ADC.
-  if (average_analogue_in > half_of_maximum_range_digital)
+  float half_of_maximum_range_digital = 2048; // =2^^12/2, number of bit for the ADC divided by two.
+  if(average_analogue_in > half_of_maximum_range_digital)
   {
     error_code = 1;
   }
@@ -151,13 +170,13 @@ void task7()
 // Turn on or off an LED by reading "error_code"
 void task8()
 {
-  if (error_code == 1) // check the state of error_code
+  if(error_code == 1) // check the state of error_code
   {
     digitalWrite(task8_output, HIGH);// turn on the LED
   }
   else
   {
-    digitalWrite(task8_output, LOW); // turn on the LED
+    digitalWrite(task8_output, LOW); // turn off the LED
   }
 }
 
@@ -174,12 +193,17 @@ void task9()
   Serial.print(", ");
 
   Serial.print("Task 5 analog input average :");
+  
+  //float analogue_in_print =  (average_analogue_in*3,3)/4096; 
+  
   Serial.print(average_analogue_in);
   Serial.print("\n");
+  Serial.println(error_code);
+  Serial.println(task_period);
 }
 
 
-void my_function()
+void my_function()//My cycle executive, it actualises very 1ms, to check if the the timing for one task, we do the modulo between the counter the its period-> if the rest is 0 it is the good timing
 {
   Counter++;
   
@@ -202,16 +226,11 @@ void my_function()
 void setup() {
   Serial.begin(115200);
 
-  pinMode(task1_input, OUTPUT); //https://techtutorialsx.com/2017/10/07/esp32-arduino-timer-interrupts/#:~:text=The%20ESP32%20has%20two%20timer,the%20timer%20counter%20%5B2%5D.
-
+  pinMode(task1_input, OUTPUT); 
   pinMode(task2_input, INPUT);
-
   attachInterrupt(digitalPinToInterrupt(task3_input), ReadFrequency, RISING);
-
   pinMode(task4_input_analog, INPUT);
-
   pinMode(task8_output, OUTPUT);
-
 
   myTicker.attach_ms(1, my_function);
 }
@@ -223,7 +242,4 @@ void setup() {
 void loop() 
 {
   
-
-
-
 }
