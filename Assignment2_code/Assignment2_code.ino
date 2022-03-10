@@ -1,8 +1,5 @@
 #include <Ticker.h>
-
-
 /* Prototypes of the functions */
-Ticker myTicker;
 void task1();//prototype of the tasks
 void task2();
 void task3();
@@ -12,9 +9,10 @@ void task6();
 void task7();
 void task8();
 void task9();
+
 //Period of each tasks
-const int TimeTask1 = 9; // time to wait signal B
-const int TimeTask2 = 200;
+const int TimeTask1 = 9; 
+const int TimeTask2 = 200; 
 const int TimeTask3 = 1000;
 const int TimeTask4 = 42;
 const int TimeTask5 = 42;
@@ -25,6 +23,7 @@ const int TimeTask9 = 5000;
 
 int Counter = 0;  // Counter use to know wich task launch or not
 
+Ticker myTicker;
 
 // ============= task 1 =============
 int const task1_input = 12;    //task 1 output
@@ -43,10 +42,10 @@ unsigned long period = 1;
 float signal_frequency = 0;
 // ============= task 4 & 5 =============
 int const task4_input_analog = 26;  //pin where the potentiometer is connected
-int current_analog_value;
+int current_analog_value;           
 float pot_value_digital;
 
-float task_period = 1;
+float task_period = 1;              // time between 2 call of the task
 
 //initliase the analog_value variables to avoid bug at the begining
 float analog_value1 = 0;
@@ -71,7 +70,7 @@ unsigned long t2_task4 = micros();
 // ====================================
 long check_time(long t1, long t2)//Function that returns the period between two activations of a task.
 {
-    unsigned long  frequency_signal;
+    unsigned long  frequency_signal;  //Local variable that indicates the ...
     unsigned long period_signal;
     period_signal = t2-t1;
     frequency_signal = (unsigned long)((1000000)/ period_signal);
@@ -82,8 +81,6 @@ long check_time(long t1, long t2)//Function that returns the period between two 
 
 // ============= task 1 =============
 // Check the sate of the input button "task2_input"
-
-
 void task1()
 {
   digitalWrite(task1_input, HIGH);
@@ -108,6 +105,7 @@ void ReadFrequency()// To compute the period of the input signal we set the prev
   previous_time = current_time;                   //set the previous time
   current_time = micros();                        //Read the current time
   period = check_time(previous_time, current_time);//Call the check_time function
+
 }
 
 
@@ -122,7 +120,7 @@ void task3()
 void task4()
 {
   current_analog_value = analogRead(task4_input_analog);             // reads the value of the potentiometer (value between 0 and 1023)
-  
+  //Variable use to controle the frequency of the task
   t1_task4 = t2_task4;
   t2_task4 = micros();
   task_period = check_time(t1_task4, t2_task4);
@@ -201,17 +199,27 @@ void task9()
 
 void my_function()//My cycle executive, it actualises very 1ms, to check if the the timing for one task, we do the modulo between the counter the its period-> if the rest is 0 it is the good timing
 {
-  Counter++;
   
-  if(Counter % TimeTask1 == 0) task1();
-  if(Counter % TimeTask2 == 0) task2();
-  if(Counter % TimeTask3 == 0) task3();
-  if(Counter % TimeTask4 == 0) task4();
-  if(Counter % TimeTask5 == 0) task5();
-  if(Counter % TimeTask6 == 0) task6();
-  if(Counter % TimeTask7 == 0) task7();
-  if(Counter % TimeTask8 == 0) task8();
-  if(Counter % TimeTask9 == 0) task9();
+  if(Counter % TimeTask1 == 0) 
+    task1();
+  if(Counter % TimeTask2 == 0) 
+    task2();
+  if(Counter % TimeTask3 == 0) 
+    task3();
+  if(Counter % TimeTask4 == 0) 
+    task4();
+  if(Counter % TimeTask5 == 0) 
+    task5();
+  if(Counter % TimeTask6 == 0) 
+    task6();
+  if(Counter % TimeTask7 == 0) 
+    task7();
+  if(Counter % TimeTask8 == 0) 
+    task8();
+  if(Counter % TimeTask9 == 0) 
+    task9();
+    
+  Counter++;//increment the counter
 }
 
 
@@ -231,9 +239,6 @@ void setup() {
   myTicker.attach_ms(1, my_function);
 }
 
-/* ====================================== */
-/*    Call and Scheduling of the tasks    */
-/* ====================================== */
 
 void loop() 
 {
