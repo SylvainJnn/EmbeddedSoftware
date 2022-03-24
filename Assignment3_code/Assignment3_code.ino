@@ -26,20 +26,20 @@ const int TimeTask9 = 5000;
 const int TimeTask10 = 1000;
 
 SemaphoreHandle_t mySemaphore;
-QueueHandle_t queue;
+QueueHandle_t myQueue;
 
-typedef struct Jsp Jsp;
-struct Jsp
+typedef struct my_struct my_struct;
+struct my_struct
 {
   bool state;
   float frequency;
   float average; 
 };
 
-Jsp la_struct;
+my_struct la_struct;
 
 // ============= task 1 =============
-int const task1_input = 12;    //task 1 output
+int const task1_output = 12;    //task 1 output
  
 
 // ============= task 2 =============
@@ -47,24 +47,25 @@ int const task2_input = 14;    //pin where the task2 button is connected
 
 int task2_state;             //state of the button is task2
 // ============= task 3 =============
-int const task3_input = 27;
+int const task3_input = 34;
 
 unsigned long current_time = 1; // init time
 unsigned long previous_time = 0;
 unsigned long period = 1;
 float signal_frequency = 0;
+
+unsigned long actualTime = micros();
+unsigned long passedTime = micros();
+
 // ============= task 4 & 5 =============
 int const task4_input_analog = 26;  //pin where the potentiometer is connected
-int current_analog_value;           
+        
 float pot_value_digital;
 
 float task_period = 1;              // time between 2 call of the task
 
 //initliase the analog_value variables to avoid bug at the begining
-float analog_value1 = 0;
-float analog_value2 = 0;
-float analog_value3 = 0;
-float analog_value4 = 0;
+
 float average_analogue_in = 0;
 
 // ============= task 7 and 8 =============
@@ -127,9 +128,9 @@ void task1(void *pvParameters)
   (void) pvParameters;
   for (;;)
   {
-    digitalWrite(task1_input, HIGH);
+    digitalWrite(task1_output, HIGH);
     delayMicroseconds(50); //wait 50 µS//or vTaskDelay(0.050);
-    digitalWrite(task1_input, LOW);
+    digitalWrite(task1_output, LOW);
     vTaskDelay(TimeTask1);
   }
 }
@@ -154,10 +155,13 @@ void task2(void *pvParameters)
 // compute the frequency of an input signal 
 void ReadFrequency()// To compute the period of the input signal we set the previous time with the current_time variable and then read the current time with micros(). this function is called every rising edge
 {
+  /*
   previous_time = current_time;                   //set the previous time
   current_time = micros();                        //Read the current time
   period = check_time(previous_time, current_time);//Call the check_time function
-
+  */
+  passedTime = actualTime;
+  actualTime = micros();
 }
 
 void task3(void *pvParameters)
@@ -165,9 +169,13 @@ void task3(void *pvParameters)
   (void) pvParameters;
   for(;;)
   {
+    
+    signal_frequency = (1/((actualTime - passedTime)*0.000001)); //(float)((1000000/ period));//the period is in µs -> we passe the frenquency in Hz, this variable comes from the function "ReadFrequency"
+
+
+    
     xSemaphoreTake(mySemaphore, portMAX_DELAY);
-    signal_frequency = (float)((1000000/ period));//the period is in µs -> we passe the frenquency in Hz, this variable comes from the function "ReadFrequency"
-    Serial.println("\n 1 second \n");
+    la_struct.frequency = signal_frequency;
     xSemaphoreGive((mySemaphore)); 
     vTaskDelay(TimeTask3);
   }
@@ -179,9 +187,11 @@ void task3(void *pvParameters)
 void task4(void *pvParameters)
 {
   (void) pvParameters;
+  float current_input_value;   
   for(;;)
   {
-    current_analog_value = analogRead(task4_input_analog);             // reads the value of the potentiometer (value between 0 and 1023)
+    current_input_value = analogRead(task4_input_analog);             // reads the value of the potentiometer (value between 0 and 1023)
+    xQueueSend(myQueue, &current_input_value, portMAX_DELAY);
     /*
     if queue len = 4
       xQueueReceive(queue, 3, portMAX_DELAY);
@@ -205,20 +215,28 @@ void task4(void *pvParameters)
 void task5(void *pvParameters)
 {
   (void) pvParameters;
+  float analog_value1 = 0;
+  float analog_value2 = 0;
+  float analog_value3 = 0;
+  float analog_value4 = 0;
   for(;;)
   {
     
     analog_value4 = analog_value3;                          //update variables   
     analog_value3 = analog_value2;
     analog_value2 = analog_value1;
-    analog_value1 = current_analog_value;                   //Set the current analogue value
-    
-    //add condition for until 4 ? 
-    
-    xSemaphoreTake(mySemaphore, portMAX_DELAY); 
+    if(xQueueReceive(myQueue, &analog_value1, portMAX_DELAY) != pdPASS) //errQUEUE_EMPTY  if not working
+    {
+      analog_value1 = analog_value2;                  //if the queue is not working we restore the previous data
+      Serial.println("Queue failled");
+    }
+     
     average_analogue_in = (analog_value1 + analog_value2 + analog_value3 + analog_value4) / 4;  //Do the average
+    //Serial.println(average_analogue_in);
+    xSemaphoreTake(mySemaphore, portMAX_DELAY); 
     la_struct.average = average_analogue_in;
     xSemaphoreGive(mySemaphore);
+    
     vTaskDelay(TimeTask5);
   }
 }
@@ -243,15 +261,19 @@ void task6(void *pvParameters)
 void task7(void *pvParameters)
 {
   (void) pvParameters;
+  
+  float average_value_received = 0;
   for(;;)
   {
+    xSemaphoreTake(mySemaphore, portMAX_DELAY); 
+    average_value_received = la_struct.average;
+    xSemaphoreGive(mySemaphore);
     float half_of_maximum_range = 3.3 / 2;
     float half_of_maximum_range_digital = 2048; // =2^^12/2, number of bit for the ADC divided by two.
-    if(average_analogue_in > half_of_maximum_range_digital)
+    if( average_value_received> half_of_maximum_range_digital)
       error_code = 1;
     else
       error_code = 0;
-      
     vTaskDelay(TimeTask7);
   }
 }
@@ -302,26 +324,27 @@ void task9_2(void *pvParameters)
   (void) pvParameters;
   for(;;)
   {
-
+    
     //either this way, OR we don't use multiple global variable and use only one struct and we update these values in  each task (update struct values)
-
 
     xSemaphoreTake(mySemaphore, portMAX_DELAY); 
 
 
-    Serial.print("Task 2 switch's state :");
-    Serial.print(la_struct.state);
-    Serial.print(", ");
-
-    Serial.print("Task 3 Frequency :");
-    Serial.print(la_struct.state);
-    Serial.print(", ");
-
-    Serial.print("Task 5 analog input average :");
-    
-    Serial.print(la_struct.average);
-    Serial.print("\n");
-    
+    if(la_struct.state == false)
+    {
+      Serial.print("Task 2 switch's state :");
+      Serial.print(la_struct.state);
+      Serial.print(", ");
+  
+      Serial.print("Task 3 Frequency :");
+      Serial.print(la_struct.frequency);
+      Serial.print(", ");
+  
+      Serial.print("Task 5 analog input average :");
+      
+      Serial.print(la_struct.average);
+      Serial.print("\n");
+    }
     xSemaphoreGive(mySemaphore);
     vTaskDelay(TimeTask9);
   }
@@ -346,19 +369,28 @@ void setup()
 {
 
   Serial.begin(9600);
-  //queue = xQueueCreate( 4, sizeof( float ) );
-
-
+  myQueue = xQueueCreate( 1, sizeof( float ) );
+  if (myQueue  == NULL) {
+    Serial.println("Queue can not be created");
+  }
+  Serial.println("Queue created");
   if ( mySemaphore == NULL )  // Check to confirm that the Serial Semaphore has not already been created. // from https://create.arduino.cc/projecthub/feilipu/using-freertos-semaphores-in-arduino-ide-b3cd6c
     {
       mySemaphore = xSemaphoreCreateMutex();  // Create a mutex semaphore we will use to manage the Serial Port
       if ( ( mySemaphore ) != NULL )
         xSemaphoreGive(( mySemaphore));  // Make the Serial Port available for use, by "Giving" the Semaphore.
+        Serial.println("Semaphore created");
     }
   
   // Now set up two tasks to run independently.
 
-    
+  pinMode(task1_output, OUTPUT); 
+  pinMode(task2_input, INPUT);
+  attachInterrupt(digitalPinToInterrupt(task3_input), ReadFrequency, RISING);
+  pinMode(task4_input_analog, INPUT);
+  pinMode(task8_output, OUTPUT);
+
+  
   xTaskCreate(
     task1
     ,  "1"   // A name just for humans
