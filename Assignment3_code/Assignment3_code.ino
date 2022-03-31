@@ -270,10 +270,12 @@ void task7(void *pvParameters)
     xSemaphoreGive(mySemaphore);
     float half_of_maximum_range = 3.3 / 2;
     float half_of_maximum_range_digital = 2048; // =2^^12/2, number of bit for the ADC divided by two.
+   
     if( average_value_received> half_of_maximum_range_digital)
       error_code = 1;
     else
       error_code = 0;
+    
     vTaskDelay(TimeTask7);
   }
 }
@@ -296,29 +298,8 @@ void task8(void *pvParameters)
 
 // ============= task 9 =============
 // print : task 2 button's state, task 3 signals' frequency, task5 analog input average
+
 void task9(void *pvParameters)
-{
-  (void) pvParameters;
-  for(;;)
-  {
-    Serial.print("Task 2 switch's state :");
-    Serial.print(task2_state);
-    Serial.print(", ");
-
-    Serial.print("Task 3 Frequency :");
-    Serial.print(signal_frequency);
-    Serial.print(", ");
-
-    Serial.print("Task 5 analog input average :");
-    
-    Serial.print(average_analogue_in);
-    Serial.print("\n");
-    
-    vTaskDelay(TimeTask9);
-  }
-}
-
-void task9_2(void *pvParameters)
 {
     
   (void) pvParameters;
@@ -386,6 +367,7 @@ void setup()
 
   pinMode(task1_output, OUTPUT); 
   pinMode(task2_input, INPUT);
+  pinMode(task3_input, INPUT);
   attachInterrupt(digitalPinToInterrupt(task3_input), ReadFrequency, RISING);
   pinMode(task4_input_analog, INPUT);
   pinMode(task8_output, OUTPUT);
@@ -456,7 +438,7 @@ void setup()
     ,  NULL );
 
   xTaskCreate(
-    task9_2
+    task9
     ,  "9"   // A name just for humans
     ,  4096  // Stack size
     ,  NULL
