@@ -1,8 +1,3 @@
-
-// define two tasks for Blink & AnalogRead
-void Task00( void *pvParameters );
-void Task01( void *pvParameters );
-
 void task1(void *pvParameters);//prototype of the tasks
 void task2(void *pvParameters);
 void task3(void *pvParameters);
@@ -23,11 +18,11 @@ const int TimeTask6 = 100;
 const int TimeTask7 = 333;
 const int TimeTask8 = 333;
 const int TimeTask9 = 5000;
-const int TimeTask10 = 1000;
 
-SemaphoreHandle_t mySemaphore;
-QueueHandle_t myQueue;
+SemaphoreHandle_t mySemaphore;//create the semaphore
+QueueHandle_t myQueue;        //create the queue
 
+//set the structure
 typedef struct my_struct my_struct;
 struct my_struct
 {
@@ -79,40 +74,13 @@ unsigned long t2_task4 = micros();
 
 
 
-/*--------------------------------------------------*/
-/*---------------------- Tasks ---------------------*/
-/*--------------------------------------------------*/
-
-void Task00(void *pvParameters)  // This is a task.
-{
-  (void) pvParameters;
-  for (;;) // A Task shall never return or exit.
-  {
-    
-    Serial.println("\nTask 00 toutes les secondes\n");
-    vTaskDelay(1000 );
-  }
-}
-
-void Task01(void *pvParameters)  // This is a task.
-{
-  (void) pvParameters;
-  // initialize serial communication at 9600 bits per second:
-  //Serial.begin(9600);
-
-  for (;;)
-  {
-    Serial.println("Task 01 toutes les deux secondes");
-    vTaskDelay(2000);
-  }
-}
 
 // ====================================
 // ============= Function =============
 // ====================================
 long check_time(long t1, long t2)//Function that returns the period between two activations of a task.
 {
-    unsigned long  frequency_signal;  //Local variable that indicates the ...
+    unsigned long  frequency_signal;  
     unsigned long period_signal;
     period_signal = t2-t1;
     frequency_signal = (unsigned long)((1000000)/ period_signal);
@@ -143,25 +111,19 @@ void task2(void *pvParameters)
   (void) pvParameters;
   for(;;)
   {
-      xSemaphoreTake(mySemaphore, portMAX_DELAY); // or     if ( xSemaphoreTake( xSerialSemaphore, ( TickType_t ) 5 ) == pdTRUE ), condition to check i don't know why and we can use tick instead of max_delay because i dunno what it is
+      xSemaphoreTake(mySemaphore, portMAX_DELAY); // Take the semaphore
       task2_state = digitalRead(task2_input);
-      la_struct.state = task2_state; //digitalRead(task2_input); direcrectly 
-      xSemaphoreGive(( mySemaphore)); 
+      la_struct.state = task2_state; // store the data in the shared strucutre
+      xSemaphoreGive(( mySemaphore)); // release the semaphore
       vTaskDelay(TimeTask2);
-
   }
 }
 // ============= task 3 =============
 // compute the frequency of an input signal 
 void ReadFrequency()// To compute the period of the input signal we set the previous time with the current_time variable and then read the current time with micros(). this function is called every rising edge
 {
-  /*
   previous_time = current_time;                   //set the previous time
   current_time = micros();                        //Read the current time
-  period = check_time(previous_time, current_time);//Call the check_time function
-  */
-  passedTime = actualTime;
-  actualTime = micros();
 }
 
 void task3(void *pvParameters)
@@ -169,11 +131,8 @@ void task3(void *pvParameters)
   (void) pvParameters;
   for(;;)
   {
-    
-    signal_frequency = (1/((actualTime - passedTime)*0.000001)); //(float)((1000000/ period));//the period is in µs -> we passe the frenquency in Hz, this variable comes from the function "ReadFrequency"
+    signal_frequency = (1/((current_time - previous_time)*0.000001)); //the period is in µs -> we passe the frenquency in Hz, this variable comes from the function "ReadFrequency"
 
-
-    
     xSemaphoreTake(mySemaphore, portMAX_DELAY);
     la_struct.frequency = signal_frequency;
     xSemaphoreGive((mySemaphore)); 
@@ -192,15 +151,7 @@ void task4(void *pvParameters)
   {
     current_input_value = analogRead(task4_input_analog);             // reads the value of the potentiometer (value between 0 and 1023)
     xQueueSend(myQueue, &current_input_value, portMAX_DELAY);
-    /*
-    if queue len = 4
-      xQueueReceive(queue, 3, portMAX_DELAY);
-    
-      xQueueSend(queue, 0, portMAX_DELAY);//take off portMAX_DELAY? /xQueueSendToBack?
 
-    and for task 5, either we can do read by doing 'queue[i]', either we copy the queue
-      
-    */
     //Variable use to controle the frequency of the task
     t1_task4 = t2_task4;
     t2_task4 = micros();
@@ -215,6 +166,7 @@ void task4(void *pvParameters)
 void task5(void *pvParameters)
 {
   (void) pvParameters;
+  //local variable to store the last 4 alaogue values
   float analog_value1 = 0;
   float analog_value2 = 0;
   float analog_value3 = 0;
@@ -311,7 +263,7 @@ void task9(void *pvParameters)
     xSemaphoreTake(mySemaphore, portMAX_DELAY); 
 
 
-    if(la_struct.state == false)
+    if(la_struct.state == true)//If the button is pressed, it can print information
     {
       Serial.print("Task 2 switch's state :");
       Serial.print(la_struct.state);
@@ -332,28 +284,16 @@ void task9(void *pvParameters)
 }
 
 
-void task10(void *pvParameters)
-{
-  (void) pvParameters;
-
-
-  for(;;)
-  {
-    //for me we don't have 10 tasks but we need to add a condition on task 9
-    vTaskDelay(TimeTask10);
-  }
-  
-}
 
 // the setup function runs once when you press reset or power the board
 void setup() 
 {
-
   Serial.begin(9600);
+ 
   myQueue = xQueueCreate( 1, sizeof( float ) );
-  if (myQueue  == NULL) {
+  if (myQueue  == NULL) 
     Serial.println("Queue can not be created");
-  }
+  
   Serial.println("Queue created");
   if ( mySemaphore == NULL )  // Check to confirm that the Serial Semaphore has not already been created. // from https://create.arduino.cc/projecthub/feilipu/using-freertos-semaphores-in-arduino-ide-b3cd6c
     {
@@ -362,9 +302,9 @@ void setup()
         xSemaphoreGive(( mySemaphore));  // Make the Serial Port available for use, by "Giving" the Semaphore.
         Serial.println("Semaphore created");
     }
+
   
   // Now set up two tasks to run independently.
-
   pinMode(task1_output, OUTPUT); 
   pinMode(task2_input, INPUT);
   pinMode(task3_input, INPUT);
@@ -444,8 +384,6 @@ void setup()
     ,  NULL
     ,  2  // priority
     ,  NULL );
-
-
 
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 }
